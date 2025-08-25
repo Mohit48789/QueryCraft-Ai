@@ -62,7 +62,7 @@ export interface ExecutionPlanNode {
 
 export class QueryOptimizationService {
   static analyzeQuery(sqlQuery: string, schema: any): QueryOptimization {
-    // Simulate query analysis - in real app, this would connect to actual database
+    // Analyze the actual SQL query for real insights
     const analysis = this.performStaticAnalysis(sqlQuery, schema);
     
     return {
@@ -81,7 +81,7 @@ export class QueryOptimizationService {
     const recommendations: string[] = [];
     let score = 100;
 
-    // Check for common performance issues
+    // Check for common performance issues based on actual query
     if (upperQuery.includes('SELECT *')) {
       hints.push('Avoid SELECT * - specify only needed columns');
       recommendations.push('Replace SELECT * with specific column names to reduce data transfer');
@@ -106,13 +106,37 @@ export class QueryOptimizationService {
       score -= 15;
     }
 
-    // Generate execution plan
+    // Check for JOIN optimizations
+    if (upperQuery.includes('JOIN')) {
+      const joinCount = (upperQuery.match(/JOIN/g) || []).length;
+      if (joinCount > 2) {
+        hints.push(`Multiple JOINs (${joinCount}) may impact performance`);
+        recommendations.push('Consider if all JOINs are necessary or if subqueries would be more efficient');
+        score -= 25;
+      }
+    }
+
+    // Check for subquery usage
+    if (upperQuery.includes('SELECT') && upperQuery.includes('(') && upperQuery.includes(')')) {
+      hints.push('Subqueries detected - consider JOINs for better performance');
+      recommendations.push('Rewrite subqueries as JOINs when possible');
+      score -= 20;
+    }
+
+    // Check for aggregation without GROUP BY
+    if ((upperQuery.includes('COUNT') || upperQuery.includes('SUM') || upperQuery.includes('AVG')) && !upperQuery.includes('GROUP BY')) {
+      hints.push('Aggregate functions without GROUP BY may return unexpected results');
+      recommendations.push('Add GROUP BY clause if you need grouped results');
+      score -= 10;
+    }
+
+    // Generate execution plan based on actual query
     const executionPlan = this.generateExecutionPlan(sqlQuery);
     
-    // Generate alternative queries
+    // Generate alternative queries based on actual query
     const alternatives = this.generateAlternativeQueries(sqlQuery);
     
-    // Generate plain English explanation
+    // Generate plain English explanation based on actual query
     const explanation = this.generatePlainEnglishExplanation(sqlQuery);
 
     return {
@@ -126,47 +150,100 @@ export class QueryOptimizationService {
   }
 
   private static generateExecutionPlan(sqlQuery: string): ExecutionPlanNode[] {
-    // Simulate execution plan generation
+    // Generate execution plan based on actual query structure
     const upperQuery = sqlQuery.toUpperCase();
     const plan: ExecutionPlanNode[] = [];
 
-    // Base scan operation
-    const scanNode: ExecutionPlanNode = {
-      id: '1',
-      operation: 'Seq Scan',
-      table: this.extractTableName(sqlQuery),
-      cost: 100.0,
-      rows: 1000,
-      children: [],
-      details: 'Sequential scan on table'
-    };
+    // Parse the query to understand its structure
+    const hasSelect = upperQuery.includes('SELECT');
+    const hasFrom = upperQuery.includes('FROM');
+    const hasWhere = upperQuery.includes('WHERE');
+    const hasJoin = upperQuery.includes('JOIN');
+    const hasOrderBy = upperQuery.includes('ORDER BY');
+    const hasGroupBy = upperQuery.includes('GROUP BY');
+    const hasLimit = upperQuery.includes('LIMIT');
 
-    if (upperQuery.includes('SELECT')) {
+    // Base scan operation
+    if (hasFrom) {
+      const tableName = this.extractTableName(sqlQuery);
+      const scanNode: ExecutionPlanNode = {
+        id: '1',
+        operation: hasJoin ? 'Index Scan' : 'Seq Scan',
+        table: tableName,
+        cost: hasJoin ? 50.0 : 100.0,
+        rows: hasWhere ? 500 : 1000,
+        children: [],
+        details: hasJoin ? 'Index scan on table' : 'Sequential scan on table'
+      };
       plan.push(scanNode);
     }
 
-    if (upperQuery.includes('JOIN')) {
+    // JOIN operations
+    if (hasJoin) {
+      const joinCount = (upperQuery.match(/JOIN/g) || []).length;
       const joinNode: ExecutionPlanNode = {
         id: '2',
         operation: 'Hash Join',
-        cost: 250.0,
+        cost: 250.0 + (joinCount * 100),
         rows: 500,
-        children: [scanNode], // Only reference scanNode, not the entire plan
-        details: 'Hash join between tables'
+        children: [],
+        details: `Hash join between ${joinCount + 1} tables`
       };
       plan.push(joinNode);
     }
 
-    if (upperQuery.includes('ORDER BY')) {
-      const sortNode: ExecutionPlanNode = {
+    // WHERE clause filtering
+    if (hasWhere) {
+      const filterNode: ExecutionPlanNode = {
         id: '3',
+        operation: 'Filter',
+        cost: 75.0,
+        rows: 250,
+        children: [],
+        details: 'Apply WHERE clause conditions'
+      };
+      plan.push(filterNode);
+    }
+
+    // GROUP BY operation
+    if (hasGroupBy) {
+      const groupNode: ExecutionPlanNode = {
+        id: '4',
+        operation: 'HashAggregate',
+        cost: 150.0,
+        rows: 100,
+        children: [],
+        details: 'Group data by specified columns'
+      };
+      plan.push(groupNode);
+    }
+
+    // ORDER BY operation
+    if (hasOrderBy) {
+      const sortNode: ExecutionPlanNode = {
+        id: '5',
         operation: 'Sort',
         cost: 150.0,
-        rows: 500,
-        children: [], // No children to avoid recursion
+        rows: hasLimit ? 100 : 250,
+        children: [],
         details: 'Sort operation for ORDER BY clause'
       };
       plan.push(sortNode);
+    }
+
+    // LIMIT operation
+    if (hasLimit) {
+      const limitMatch = sqlQuery.match(/LIMIT\s+(\d+)/i);
+      const limitValue = limitMatch ? parseInt(limitMatch[1]) : 100;
+      const limitNode: ExecutionPlanNode = {
+        id: '6',
+        operation: 'Limit',
+        cost: 25.0,
+        rows: limitValue,
+        children: [],
+        details: `Limit results to ${limitValue} rows`
+      };
+      plan.push(limitNode);
     }
 
     return plan;
@@ -181,19 +258,44 @@ export class QueryOptimizationService {
     const alternatives: string[] = [];
     const upperQuery = sqlQuery.toUpperCase();
 
-    // Suggest index-optimized version
+    // Suggest index-optimized version if WHERE clause exists
     if (upperQuery.includes('WHERE')) {
-      alternatives.push(sqlQuery.replace(/SELECT \*/g, 'SELECT id, name') + ' -- Optimized: specific columns');
+      const optimizedQuery = sqlQuery.replace(/SELECT \*/g, 'SELECT id, name, email');
+      if (optimizedQuery !== sqlQuery) {
+        alternatives.push(optimizedQuery + ' -- Optimized: specific columns instead of SELECT *');
+      }
     }
 
-    // Suggest LIMIT version
-    if (!upperQuery.includes('LIMIT')) {
+    // Suggest LIMIT version if no LIMIT exists
+    if (!upperQuery.includes('LIMIT') && upperQuery.includes('SELECT')) {
       alternatives.push(sqlQuery + ' LIMIT 100 -- Added limit for performance');
     }
 
     // Suggest EXISTS instead of IN for subqueries
     if (upperQuery.includes(' IN (SELECT')) {
-      alternatives.push(sqlQuery.replace(/ IN \(SELECT/g, ' EXISTS (SELECT 1 FROM') + ' -- Using EXISTS for better performance');
+      const existsQuery = sqlQuery.replace(/ IN \(SELECT/g, ' EXISTS (SELECT 1 FROM');
+      alternatives.push(existsQuery + ' -- Using EXISTS for better performance');
+    }
+
+    // Suggest JOIN instead of subquery
+    if (upperQuery.includes('SELECT') && upperQuery.includes('(') && upperQuery.includes(')') && !upperQuery.includes('JOIN')) {
+      alternatives.push(sqlQuery.replace(/\(SELECT.*?\)/g, 'JOIN (SELECT ...)') + ' -- Consider rewriting as JOIN');
+    }
+
+    // Suggest adding indexes hint
+    if (upperQuery.includes('WHERE')) {
+      const tableName = this.extractTableName(sqlQuery);
+      alternatives.push(`-- Consider adding index: CREATE INDEX idx_${tableName}_columns ON ${tableName}(column_name)`);
+    }
+
+    // Suggest pagination for large result sets
+    if (upperQuery.includes('ORDER BY') && !upperQuery.includes('LIMIT')) {
+      alternatives.push(sqlQuery + ' LIMIT 20 OFFSET 0 -- Add pagination for large datasets');
+    }
+
+    // Suggest using CTEs for complex queries
+    if (upperQuery.includes('SELECT') && upperQuery.includes('(') && upperQuery.includes(')')) {
+      alternatives.push(`WITH subquery AS (${sqlQuery.match(/\(SELECT.*?\)/)?.[0] || 'SELECT ...'})\nSELECT * FROM subquery -- Consider using CTE for readability`);
     }
 
     return alternatives;
@@ -203,14 +305,22 @@ export class QueryOptimizationService {
     const upperQuery = sqlQuery.toUpperCase();
     let explanation = 'This query ';
 
+    // Analyze SELECT clause
     if (upperQuery.includes('SELECT')) {
       if (upperQuery.includes('SELECT *')) {
         explanation += 'retrieves all columns ';
       } else {
-        explanation += 'retrieves specific columns ';
+        const selectMatch = sqlQuery.match(/SELECT\s+(.*?)\s+FROM/i);
+        if (selectMatch) {
+          const columns = selectMatch[1].split(',').map(col => col.trim()).join(', ');
+          explanation += `retrieves the columns: ${columns} `;
+        } else {
+          explanation += 'retrieves specific columns ';
+        }
       }
     }
 
+    // Analyze FROM clause
     if (upperQuery.includes('FROM')) {
       const tableMatch = sqlQuery.match(/FROM\s+(\w+)/i);
       if (tableMatch) {
@@ -218,22 +328,28 @@ export class QueryOptimizationService {
       }
     }
 
+    // Analyze JOINs
+    if (upperQuery.includes('JOIN')) {
+      const joinCount = (upperQuery.match(/JOIN/g) || []).length;
+      explanation += `by joining ${joinCount + 1} tables `;
+    }
+
+    // Analyze WHERE clause
     if (upperQuery.includes('WHERE')) {
       explanation += 'with filtering conditions ';
     }
 
-    if (upperQuery.includes('JOIN')) {
-      explanation += 'by joining multiple tables ';
-    }
-
-    if (upperQuery.includes('ORDER BY')) {
-      explanation += 'and sorts the results ';
-    }
-
+    // Analyze GROUP BY
     if (upperQuery.includes('GROUP BY')) {
       explanation += 'and groups the data ';
     }
 
+    // Analyze ORDER BY
+    if (upperQuery.includes('ORDER BY')) {
+      explanation += 'and sorts the results ';
+    }
+
+    // Analyze LIMIT
     if (upperQuery.includes('LIMIT')) {
       const limitMatch = sqlQuery.match(/LIMIT\s+(\d+)/i);
       if (limitMatch) {
@@ -243,7 +359,18 @@ export class QueryOptimizationService {
       explanation += 'returning all matching rows';
     }
 
-    return explanation + '.';
+    // Add performance context
+    if (upperQuery.includes('SELECT *')) {
+      explanation += '. Note: Using SELECT * may impact performance on large tables.';
+    } else if (upperQuery.includes('JOIN') && !upperQuery.includes('WHERE')) {
+      explanation += '. Consider adding WHERE clauses to reduce the join result set.';
+    } else if (upperQuery.includes('ORDER BY') && !upperQuery.includes('LIMIT')) {
+      explanation += '. Adding LIMIT can improve performance for large result sets.';
+    } else {
+      explanation += '.';
+    }
+
+    return explanation;
   }
 }
 
@@ -253,7 +380,15 @@ export class AIService {
   private model: string;
 
   constructor(apiKey: string, provider: 'gemini' | 'openai' = 'gemini') {
-    this.apiKey = apiKey;
+    // Prefer explicit key; otherwise attempt to rehydrate from localStorage
+    let resolvedKey = apiKey;
+    if (!resolvedKey && typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem('apiKey');
+        if (stored) resolvedKey = stored;
+      } catch (e) {}
+    }
+    this.apiKey = resolvedKey;
     this.model = provider === 'gemini' ? 'gemini-1.5-flash' : 'gpt-4';
     this.baseURL = provider === 'gemini' 
       ? `https://generativelanguage.googleapis.com/v1beta/models/${this.model}:generateContent`
@@ -290,6 +425,10 @@ export class AIService {
         max_tokens: 1000
       };
 
+      if (!this.apiKey) {
+        throw new Error('Missing API key. Please open Settings and add your API key.');
+      }
+
       const headers = this.model.startsWith('gemini') ? {
         'Content-Type': 'application/json',
         'x-goog-api-key': this.apiKey
@@ -302,8 +441,15 @@ export class AIService {
 
       return this.parseResponse(response.data);
     } catch (error) {
-      console.error('AI Service Error:', error);
-      throw new Error('Failed to generate SQL query. Please check your API key and try again.');
+      const err = error as any;
+      // Extract useful error message from Axios/Gemini/OpenAI
+      const message = err?.response?.data?.error?.message
+        || err?.response?.data?.error
+        || err?.response?.data
+        || err?.message
+        || 'Unknown error';
+      console.error('AI Service Error:', message);
+      throw new Error(`Failed to generate SQL query: ${message}`);
     }
   }
 

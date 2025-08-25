@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowLeft, AlertCircle } from 'lucide-react';
-import { AuthService } from '../services/authService';
-import { User } from 'firebase/auth';
+import { ArrowLeft } from 'lucide-react';
+import { GoogleLogin } from '@react-oauth/google';
+
 
 interface LoginPageProps {
   isDarkMode: boolean;
@@ -12,126 +12,21 @@ interface LoginPageProps {
 export const LoginPage: React.FC<LoginPageProps> = ({ isDarkMode, onBack }) => {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
 
-  // Check if Firebase is properly configured
-  const isFirebaseConfigured = AuthService.isFirebaseConfigured();
-
-  const handleGoogle = async () => {
-    setMessage(null);
+  // Handle Google login success
+  const handleGoogleSuccess = (credentialResponse: any) => {
+    setMessage('Google login successful!');
     setError(null);
-    setIsLoading(true);
-    
-    try { 
-      if (!isFirebaseConfigured) {
-        throw new Error('Firebase is not properly configured. Please check your environment variables.');
-      }
-      
-      await AuthService.loginWithGoogle(); 
-    } catch (e: any) {
-        setError(e?.message || 'Google login failed');
-    } finally {
-      setIsLoading(false);
-    }
+    // You can send credentialResponse.credential to your backend for verification
+    console.log(credentialResponse);
+    setTimeout(() => onBack(), 500);
   };
 
-  const handleGitHub = async () => {
-    setMessage(null); 
-        setError(null);
-    setIsLoading(true);
-    
-    try { 
-      if (!isFirebaseConfigured) {
-        throw new Error('Firebase is not properly configured. Please check your environment variables.');
-      }
-      
-      await AuthService.loginWithGitHub(); 
-    } catch (e: any) {
-      setError(e?.message || 'GitHub login failed');
-    } finally {
-      setIsLoading(false);
-    }
+  // Handle Google login error
+  const handleGoogleError = () => {
+    setError('Google login failed');
+    setMessage(null);
   };
-
-  React.useEffect(() => {
-    const unsub = AuthService.onAuthState((user) => setCurrentUser(user));
-    return () => { if (typeof unsub === 'function') unsub(); };
-  }, []);
-
-  // Auto-close after successful login
-  React.useEffect(() => {
-    if (currentUser) {
-      const t = setTimeout(() => onBack(), 300);
-      return () => clearTimeout(t);
-    }
-  }, [currentUser, onBack]);
-
-  // Show configuration warning if Firebase is not configured
-  if (!isFirebaseConfigured) {
-    return (
-      <div className={`min-h-screen flex items-center justify-center px-4 ${
-        isDarkMode 
-          ? 'bg-gradient-to-br from-black via-gray-900 to-black' 
-          : 'bg-gradient-to-br from-gray-50 via-white to-gray-100'
-      }`}>
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className={`relative w-full max-w-md p-8 rounded-2xl backdrop-blur-md border ${
-            isDarkMode 
-              ? 'bg-white/10 border-white/20' 
-              : 'bg-white/80 border-gray-200'
-          }`}
-        >
-          <button
-            onClick={onBack}
-            className={`mb-6 flex items-center gap-2 text-sm font-medium transition-colors ${
-              isDarkMode 
-                ? 'text-gray-400 hover:text-white' 
-                : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Back to Home
-          </button>
-
-          <div className="text-center">
-            <AlertCircle className={`w-16 h-16 mx-auto mb-4 ${
-              isDarkMode ? 'text-red-400' : 'text-red-500'
-            }`} />
-            <h1 className={`text-2xl font-bold mb-4 ${
-              isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>
-              Configuration Required
-            </h1>
-            <p className={`mb-6 ${
-              isDarkMode ? 'text-gray-400' : 'text-gray-600'
-            }`}>
-              Firebase authentication is not properly configured. Please add the following environment variables to your <code className="bg-gray-200 px-2 py-1 rounded">.env</code> file:
-            </p>
-            <div className={`text-left p-4 rounded-lg ${
-              isDarkMode ? 'bg-gray-800' : 'bg-gray-100'
-            }`}>
-              <code className="text-sm">
-                REACT_APP_FIREBASE_API_KEY=your-api-key<br/>
-                REACT_APP_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com<br/>
-                REACT_APP_FIREBASE_PROJECT_ID=your-project-id<br/>
-                REACT_APP_FIREBASE_APP_ID=your-app-id<br/>
-                REACT_APP_FIREBASE_STORAGE_BUCKET=your-project.appspot.com<br/>
-                REACT_APP_FIREBASE_MESSAGING_SENDER_ID=your-sender-id
-              </code>
-            </div>
-            <p className={`mt-4 text-sm ${
-              isDarkMode ? 'text-gray-400' : 'text-gray-600'
-            }`}>
-              After updating the .env file, restart your development server.
-            </p>
-          </div>
-        </motion.div>
-      </div>
-    );
-  }
 
   return (
     <div className={`min-h-screen flex items-center justify-center px-4 ${
@@ -214,30 +109,15 @@ export const LoginPage: React.FC<LoginPageProps> = ({ isDarkMode, onBack }) => {
             </div>
           </div>
           
-          <div className="mt-6 space-y-4">
-            <button 
-              onClick={handleGoogle} 
-              disabled={isLoading}
-              className={`w-full flex items-center justify-center px-6 py-3 border rounded-lg font-medium transition-colors ${
-              isDarkMode 
-                ? 'border-white/20 text-gray-300 hover:bg-white/10' 
-                : 'border-gray-300 text-gray-700 hover:bg-gray-50'
-              } disabled:opacity-50 disabled:cursor-not-allowed`}
-            >
-              {isLoading ? 'Signing in...' : 'Continue with Google'}
-            </button>
-            
-            <button 
-              onClick={handleGitHub} 
-              disabled={isLoading}
-              className={`w-full flex items-center justify-center px-6 py-3 border rounded-lg font-medium transition-colors ${
-              isDarkMode 
-                ? 'border-white/20 text-gray-300 hover:bg-white/10' 
-                : 'border-gray-300 text-gray-700 hover:bg-gray-50'
-              } disabled:opacity-50 disabled:cursor-not-allowed`}
-            >
-              {isLoading ? 'Signing in...' : 'Continue with GitHub'}
-            </button>
+          <div className="mt-6 space-y-4 flex flex-col items-center">
+            <GoogleLogin
+              onSuccess={handleGoogleSuccess}
+              onError={handleGoogleError}
+              width="100%"
+              theme={isDarkMode ? "filled_black" : "outline"}
+              text="signin_with"
+              shape="rectangular"
+            />
           </div>
         </div>
       </motion.div>

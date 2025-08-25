@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Play, Zap, Eye, Share2, Sun, Moon, Maximize2, Minimize2 } from 'lucide-react';
@@ -6,6 +6,7 @@ import { QueryInput } from '../components/QueryInput';
 import { QueryResult } from '../components/QueryResult';
 import { AboutSection } from '../components/AboutSection';
 import { QueryResponse, DatabaseSchema } from '../types';
+import { AIService } from '../services/aiService';
 
 interface HomePageProps {
   isDarkMode: boolean;
@@ -17,10 +18,12 @@ export const HomePage: React.FC<HomePageProps> = ({ isDarkMode, toggleDarkMode, 
   const navigate = useNavigate();
   const [queryResult, setQueryResult] = useState<QueryResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [hasApiKey, setHasApiKey] = useState(true);
+  const [hasApiKey, setHasApiKey] = useState(false);
+  const [apiKey, setApiKey] = useState<string>('');
   const [showAdvancedFeatures, setShowAdvancedFeatures] = useState(false);
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [naturalLanguageQuery, setNaturalLanguageQuery] = useState<string>('');
+  const queryResultRef = useRef<HTMLDivElement>(null);
 
   // Sample database schema
   const schema: DatabaseSchema = {
@@ -55,12 +58,17 @@ export const HomePage: React.FC<HomePageProps> = ({ isDarkMode, toggleDarkMode, 
       const storedResult = localStorage.getItem('queryResult');
       const storedNLQ = localStorage.getItem('naturalLanguageQuery');
       const storedSchema = localStorage.getItem('schema');
+      const storedApiKey = localStorage.getItem('apiKey');
 
       if (storedResult) {
         setQueryResult(JSON.parse(storedResult));
       }
       if (storedNLQ) {
         setNaturalLanguageQuery(storedNLQ);
+      }
+      if (storedApiKey) {
+        setApiKey(storedApiKey);
+        setHasApiKey(!!storedApiKey);
       }
       // If schema was previously customized and stored, prefer it; otherwise store current
       if (!storedSchema) {
@@ -121,6 +129,16 @@ export const HomePage: React.FC<HomePageProps> = ({ isDarkMode, toggleDarkMode, 
     setIsFullScreen(!isFullScreen);
   };
 
+  const scrollToQueryResult = () => {
+    if (queryResultRef.current) {
+      queryResultRef.current.scrollIntoView({ 
+        behavior: 'smooth', 
+        block: 'start',
+        inline: 'nearest'
+      });
+    }
+  };
+
   return (
     <div className={`min-h-screen transition-colors duration-300 ${
       isDarkMode 
@@ -150,40 +168,56 @@ export const HomePage: React.FC<HomePageProps> = ({ isDarkMode, toggleDarkMode, 
         {/* Query Input Section */}
         <div className="max-w-4xl mx-auto mb-8">
           <QueryInput 
-            onSubmit={(query: string, databaseType: string) => {
-              // Handle query submission logic here
+            onSubmit={async (query: string, databaseType: string) => {
               setIsLoading(true);
-              // Persist the natural language query immediately
               setNaturalLanguageQuery(query);
               try {
                 localStorage.setItem('naturalLanguageQuery', query);
                 localStorage.setItem('schema', JSON.stringify(schema));
               } catch (e) {}
-              // This would normally call your AI service
-              setTimeout(() => {
-                setQueryResult({
-                  sqlQuery: `SELECT u.name, u.email, o.product_name, o.amount 
-FROM users u 
-JOIN orders o ON u.id = o.user_id 
-ORDER BY o.order_date DESC;`,
-                  explanation: "This query retrieves user information along with their order details by joining the users and orders tables.",
-                  confidence: 95,
-                  warnings: [],
-                  suggestions: ["Consider adding a LIMIT clause for large datasets"]
+
+              try {
+                console.log('Using API key:', apiKey ? `Present (${apiKey.substring(0, 10)}...)` : 'Missing');
+                console.log('API key length:', apiKey?.length || 0);
+                
+                if (!apiKey) {
+                  throw new Error('No API key found. Please add your Gemini API key in Settings.');
+                }
+                
+                const service = new AIService(apiKey, 'gemini');
+                const response = await service.generateSQLQuery({
+                  naturalLanguageQuery: query,
+                  schema,
+                  databaseType: databaseType as any
                 });
+                setQueryResult(response);
+                scrollToQueryResult(); // Scroll to results after successful generation
+              } catch (err: any) {
+                console.error('Query generation error:', err);
+                setQueryResult({
+                  sqlQuery: '',
+                  explanation: err?.message || 'Failed to generate SQL query.',
+                  confidence: 0,
+                  warnings: [],
+                  suggestions: []
+                });
+              } finally {
                 setIsLoading(false);
-              }, 2000);
+              }
             }}
             isLoading={isLoading}
             isDarkMode={isDarkMode}
             hasApiKey={hasApiKey}
-            onApiKeyChange={(key: string) => setHasApiKey(!!key)}
+            onApiKeyChange={(key: string) => {
+              setApiKey(key);
+              setHasApiKey(!!key);
+            }}
           />
         </div>
 
         {/* Generated SQL Query Section */}
         {queryResult && (
-          <div className="max-w-4xl mx-auto mb-8">
+          <div className="max-w-4xl mx-auto mb-8" ref={queryResultRef}>
             <QueryResult 
               result={queryResult}
               isLoading={isLoading}

@@ -22,6 +22,34 @@ export const QueryInput: React.FC<QueryInputProps> = ({
   const [showSettings, setShowSettings] = useState(false);
   const [apiKey, setApiKey] = useState('');
 
+  // Add custom styles for better dropdown visibility
+  useEffect(() => {
+    const style = document.createElement('style');
+    style.textContent = `
+      .database-select option {
+        padding: 8px 12px;
+        background: ${isDarkMode ? '#1f2937' : '#ffffff'};
+        color: ${isDarkMode ? '#ffffff' : '#000000'};
+        border: none;
+        cursor: pointer;
+      }
+      .database-select option:hover {
+        background: ${isDarkMode ? '#374151' : '#f3f4f6'};
+      }
+      .database-select option:checked {
+        background: ${isDarkMode ? '#3b82f6' : '#3b82f6'};
+        color: white;
+      }
+    `;
+    document.head.appendChild(style);
+    
+    return () => {
+      if (document.head.contains(style)) {
+        document.head.removeChild(style);
+      }
+    };
+  }, [isDarkMode]);
+
   // Rehydrate persisted inputs on mount
   useEffect(() => {
     try {
@@ -54,11 +82,17 @@ export const QueryInput: React.FC<QueryInputProps> = ({
 
   const handleApiKeySubmit = () => {
     if (apiKey.trim()) {
+      console.log('Saving API key:', apiKey.trim().substring(0, 10) + '...');
       onApiKeyChange(apiKey.trim());
       try {
         localStorage.setItem('apiKey', apiKey.trim());
-      } catch (e) {}
+        console.log('API key saved to localStorage');
+      } catch (e) {
+        console.error('Failed to save API key to localStorage:', e);
+      }
       setShowSettings(false);
+      // Clear the input after saving
+      setApiKey('');
     }
   };
 
@@ -80,11 +114,49 @@ export const QueryInput: React.FC<QueryInputProps> = ({
           : 'bg-white/80 border-gray-200'
       }`}
     >
-      <div className="flex items-center gap-3 mb-6">
-        <Sparkles className="w-6 h-6 text-purple-400" />
-        <h2 className={`text-xl font-semibold ${
-          isDarkMode ? 'text-white' : 'text-gray-900'
-        }`}>AI Query Generator</h2>
+      <div className="flex items-center justify-between gap-3 mb-6">
+        <div className="flex items-center gap-3">
+          <Sparkles className="w-6 h-6 text-purple-400" />
+          <h2 className={`text-xl font-semibold ${
+            isDarkMode ? 'text-white' : 'text-gray-900'
+          }`}>AI Query Generator</h2>
+        </div>
+        {!hasApiKey ? (
+          <div className="flex items-center gap-2">
+            <span className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+              API Key: Not set
+            </span>
+            <button
+              type="button"
+              onClick={() => setShowSettings((v) => !v)}
+              className={`flex items-center gap-1 px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
+                isDarkMode
+                  ? 'bg-white/10 text-gray-200 hover:bg-white/20'
+                  : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
+              }`}
+              aria-label="Open API settings"
+            >
+              <Settings className="w-4 h-4" />
+              Settings
+            </button>
+          </div>
+        ) : (
+          <div className="group relative">
+            <button
+              type="button"
+              onClick={() => setShowSettings(true)}
+              className={`p-2 rounded-lg transition-all duration-200 opacity-0 group-hover:opacity-100 ${
+                isDarkMode
+                  ? 'text-gray-500 hover:text-gray-300 hover:bg-white/5'
+                  : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
+              }`}
+              aria-label="Open API settings"
+              title="API Settings"
+            >
+              <Settings className="w-4 h-4" />
+            </button>
+          </div>
+        )}
       </div>
 
       {showSettings && (
@@ -121,6 +193,30 @@ export const QueryInput: React.FC<QueryInputProps> = ({
                   Save
                 </button>
               </div>
+              <div className="flex gap-2 mt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (apiKey.trim()) {
+                      console.log('Testing API key:', apiKey.trim().substring(0, 10) + '...');
+                      // Test the API key by making a simple request
+                      const testService = new (require('../services/aiService').AIService)(apiKey.trim(), 'gemini');
+                      testService.generateSQLQuery({
+                        naturalLanguageQuery: 'Show me all users',
+                        schema: { id: 'test', name: 'Test DB', tables: [{ name: 'users', columns: [{ name: 'id', type: 'INTEGER', isPrimaryKey: true, isForeignKey: false }] }] },
+                        databaseType: 'mysql'
+                      }).then(() => {
+                        alert('✅ API key is working! You can now generate queries.');
+                      }).catch((err: any) => {
+                        alert(`❌ API key test failed: ${err.message}`);
+                      });
+                    }
+                  }}
+                  className="px-3 py-1 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors text-sm font-medium"
+                >
+                  Test API Key
+                </button>
+              </div>
               <p className={`text-xs mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                 Your API key is stored locally and never sent to our servers. Get your free API key from Google AI Studio.
               </p>
@@ -138,20 +234,24 @@ export const QueryInput: React.FC<QueryInputProps> = ({
             <select
               value={databaseType}
               onChange={(e) => setDatabaseType(e.target.value)}
-              className={`w-full px-4 py-2 rounded-lg focus:outline-none appearance-none pr-10 ${
+              className={`database-select w-full px-4 py-2 rounded-lg focus:outline-none appearance-none pr-10 cursor-pointer transition-colors ${
                 isDarkMode
-                  ? 'bg-white/10 border border-white/20 text-white focus:border-blue-400'
-                  : 'bg-white border border-gray-300 text-gray-900 focus:border-blue-500'
+                  ? 'bg-white/10 border border-white/20 text-white focus:border-blue-400 hover:bg-white/20'
+                  : 'bg-white border border-gray-300 text-gray-900 focus:border-blue-500 hover:bg-gray-50'
               }`}
+              style={{ zIndex: 10 }}
             >
-              <option value="mysql">MySQL</option>
-              <option value="postgresql">PostgreSQL</option>
-              <option value="sqlite">SQLite</option>
-              <option value="mssql">Microsoft SQL Server</option>
+              <option value="mysql" className="py-2">MySQL</option>
+              <option value="postgresql" className="py-2">PostgreSQL</option>
+              <option value="sqlite" className="py-2">SQLite</option>
+              <option value="mssql" className="py-2">Microsoft SQL Server</option>
             </select>
             <ChevronDown className={`absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none ${
               isDarkMode ? 'text-gray-300' : 'text-gray-500'
             }`} />
+          </div>
+          <div className={`mt-1 text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+            Selected: {databaseType.charAt(0).toUpperCase() + databaseType.slice(1)}
           </div>
         </div>
 
@@ -190,7 +290,6 @@ export const QueryInput: React.FC<QueryInputProps> = ({
           )}
         </button>
       </form>
-
 
       <div className="mt-6">
         <h3 className={`text-sm font-medium mb-3 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Sample Queries</h3>
