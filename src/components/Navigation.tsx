@@ -2,7 +2,6 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Brain, Sun, Moon, User, Play, LogOut } from 'lucide-react';
 import { useAuth0 } from '@auth0/auth0-react';
-import ReactDOM from 'react-dom';
 
 interface NavigationProps {
   isDarkMode: boolean;
