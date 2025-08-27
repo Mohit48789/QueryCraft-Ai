@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-expressions */
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Database, ArrowRight, Table, Key, Link, Search, Filter, SortAsc } from 'lucide-react';

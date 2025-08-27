@@ -92,7 +92,7 @@ export const Navigation: React.FC<NavigationProps> = ({ isDarkMode, toggleDarkMo
               </button>
             ) : (
               <button 
-                onClick={() => loginWithRedirect()}
+                onClick={() => { try { localStorage.setItem('authAction', 'login'); } catch (e) {} loginWithRedirect(); }}
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
                 isDarkMode 
                   ? 'text-gray-300 hover:text-white hover:bg-gray-800' 

@@ -16,6 +16,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ isDarkMode, onBack }) => {
 
   const handleLogin = async () => {
     try {
+      try { localStorage.setItem('authAction', 'login'); } catch (e) {}
       await loginWithRedirect();
       setMessage('Login successful!');
       setError(null);
@@ -28,6 +29,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ isDarkMode, onBack }) => {
 
   const handleLogout = () => {
     try {
+      try { localStorage.setItem('authAction', 'logout'); } catch (e) {}
       logout({ logoutParams: { returnTo: window.location.origin } });
     } catch (e: any) {
       setError(e?.message || 'Logout failed');
