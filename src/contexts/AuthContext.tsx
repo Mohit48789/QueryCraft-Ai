@@ -1,23 +1,21 @@
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { User } from 'firebase/auth';
-import { onAuthStateChange, signInWithGoogle, signInWithGithub, signOutUser } from '../services/firebase';
+// src/contexts/AuthContext.tsx
+import React, { createContext, useContext, ReactNode } from 'react';
+import { useAuth0, User as Auth0User } from '@auth0/auth0-react';
 
 interface AuthContextType {
-  currentUser: User | null;
+  currentUser: Auth0User | undefined;
   loading: boolean;
-  signInWithGoogle: () => Promise<{ user: User | null; error: string | null }>;
-  signInWithGithub: () => Promise<{ user: User | null; error: string | null }>;
-  signOut: () => Promise<{ error: string | null }>;
+  signInWithGoogle: () => Promise<void>;
+  signInWithGithub: () => Promise<void>;
+  signOut: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error('useAuth must be used within an AuthProvider');
+  return ctx;
 };
 
 interface AuthProviderProps {
@@ -25,41 +23,31 @@ interface AuthProviderProps {
 }
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { user, isLoading, loginWithRedirect, logout } = useAuth0();
 
-  useEffect(() => {
-    const unsubscribe = onAuthStateChange((user) => {
-      setCurrentUser(user);
-      setLoading(false);
-    });
-
-    return unsubscribe;
-  }, []);
-
-  const handleGoogleSignIn = async () => {
-    return await signInWithGoogle();
+  const signInWithGoogle = async () => {
+    await loginWithRedirect({ connection: 'google-oauth2' });
   };
 
-  const handleGithubSignIn = async () => {
-    return await signInWithGithub();
+  const signInWithGithub = async () => {
+    await loginWithRedirect({ connection: 'github' });
   };
 
-  const handleSignOut = async () => {
-    return await signOutUser();
+  const signOut = async () => {
+    await logout({ logoutParams: { returnTo: window.location.origin } });
   };
 
   const value: AuthContextType = {
-    currentUser,
-    loading,
-    signInWithGoogle: handleGoogleSignIn,
-    signInWithGithub: handleGithubSignIn,
-    signOut: handleSignOut,
+    currentUser: user,
+    loading: isLoading,
+    signInWithGoogle,
+    signInWithGithub,
+    signOut,
   };
 
   return (
     <AuthContext.Provider value={value}>
-      {!loading && children}
+      {!isLoading && children}
     </AuthContext.Provider>
   );
 };
