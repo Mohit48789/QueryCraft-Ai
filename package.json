@@ -4,6 +4,7 @@
   "description": "AI-Powered SQL Query Generator with Beautiful UI",
   "private": true,
   "dependencies": {
+    "@auth0/auth0-react": "^2.4.0",
     "@react-oauth/google": "^0.12.2",
     "@types/node": "^16.18.0",
     "@types/react": "^18.2.0",
@@ -11,7 +12,7 @@
     "@types/react-syntax-highlighter": "^15.5.0",
     "axios": "^1.6.0",
     "clsx": "^2.0.0",
-    "firebase": "^10.12.0",
+    "firebase": "^10.14.1",
     "framer-motion": "^10.16.0",
     "lucide-react": "^0.292.0",
     "react": "^18.2.0",

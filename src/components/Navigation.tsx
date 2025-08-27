@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Brain, Sun, Moon, User, Play, LogOut } from 'lucide-react';
-import { AuthService } from '../services/authService';
+import { useAuth0 } from '@auth0/auth0-react';
 import ReactDOM from 'react-dom';
 
 interface NavigationProps {
@@ -11,11 +11,7 @@ interface NavigationProps {
 }
 
 export const Navigation: React.FC<NavigationProps> = ({ isDarkMode, toggleDarkMode, onLoginClick }) => {
-  const [isAuthed, setIsAuthed] = React.useState(false);
-  React.useEffect(() => {
-    const unsub = AuthService.onAuthState((user) => setIsAuthed(!!user));
-    return () => { if (typeof unsub === 'function') unsub(); };
-  }, []);
+  const { isAuthenticated, loginWithRedirect, logout } = useAuth0();
   return (
     <motion.nav
       initial={{ opacity: 0, y: -20 }}
@@ -83,9 +79,9 @@ export const Navigation: React.FC<NavigationProps> = ({ isDarkMode, toggleDarkMo
             </button>
 
             {/* Auth Button */}
-            {isAuthed ? (
+            {isAuthenticated ? (
               <button
-                onClick={() => { AuthService.logout(); }}
+                onClick={() => { logout({ logoutParams: { returnTo: window.location.origin } }); }}
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
                   isDarkMode
                     ? 'text-gray-300 hover:text-white hover:bg-gray-800'
@@ -97,7 +93,7 @@ export const Navigation: React.FC<NavigationProps> = ({ isDarkMode, toggleDarkMo
               </button>
             ) : (
               <button 
-                onClick={onLoginClick}
+                onClick={() => loginWithRedirect()}
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
                 isDarkMode 
                   ? 'text-gray-300 hover:text-white hover:bg-gray-800' 

@@ -18,8 +18,22 @@ export const HomePage: React.FC<HomePageProps> = ({ isDarkMode, toggleDarkMode, 
   const navigate = useNavigate();
   const [queryResult, setQueryResult] = useState<QueryResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [hasApiKey, setHasApiKey] = useState(false);
-  const [apiKey, setApiKey] = useState<string>('');
+  const [hasApiKey, setHasApiKey] = useState(() => {
+    try {
+      const stored = localStorage.getItem('apiKey');
+      const envKey = process.env.REACT_APP_GEMINI_API_KEY;
+      return !!(stored || envKey);
+    } catch (e) {
+      return false;
+    }
+  });
+  const [apiKey, setApiKey] = useState<string>(() => {
+    try {
+      return localStorage.getItem('apiKey') || process.env.REACT_APP_GEMINI_API_KEY || '';
+    } catch (e) {
+      return '';
+    }
+  });
   const [showAdvancedFeatures, setShowAdvancedFeatures] = useState(false);
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [naturalLanguageQuery, setNaturalLanguageQuery] = useState<string>('');

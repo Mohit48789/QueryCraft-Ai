@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowLeft } from 'lucide-react';
-import { GoogleLogin } from '@react-oauth/google';
+import { useAuth0 } from '@auth0/auth0-react';
 
 
 interface LoginPageProps {
@@ -12,20 +12,26 @@ interface LoginPageProps {
 export const LoginPage: React.FC<LoginPageProps> = ({ isDarkMode, onBack }) => {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const { loginWithRedirect, logout, user, isAuthenticated, isLoading } = useAuth0();
 
-  // Handle Google login success
-  const handleGoogleSuccess = (credentialResponse: any) => {
-    setMessage('Google login successful!');
-    setError(null);
-    // You can send credentialResponse.credential to your backend for verification
-    console.log(credentialResponse);
-    setTimeout(() => onBack(), 500);
+  const handleLogin = async () => {
+    try {
+      await loginWithRedirect();
+      setMessage('Login successful!');
+      setError(null);
+      setTimeout(() => onBack(), 500);
+    } catch (e: any) {
+      setError(e?.message || 'Login failed');
+      setMessage(null);
+    }
   };
 
-  // Handle Google login error
-  const handleGoogleError = () => {
-    setError('Google login failed');
-    setMessage(null);
+  const handleLogout = () => {
+    try {
+      logout({ logoutParams: { returnTo: window.location.origin } });
+    } catch (e: any) {
+      setError(e?.message || 'Logout failed');
+    }
   };
 
   return (
@@ -92,33 +98,52 @@ export const LoginPage: React.FC<LoginPageProps> = ({ isDarkMode, onBack }) => {
           </div>
         )}
 
-        {/* Social Login */}
-        <div className="mt-6">
-          <div className={`relative text-center text-sm ${
-            isDarkMode ? 'text-gray-400' : 'text-gray-600'
-          }`}>
-            <span className={`px-3 ${
-              isDarkMode ? 'bg-gray-900' : 'bg-white'
-            }`}>
-              Sign in with
-            </span>
-            <div className={`absolute inset-0 flex items-center ${
-              isDarkMode ? 'border-gray-700' : 'border-gray-300'
-            }`}>
-              <div className="w-full border-t"></div>
+        {/* Auth0 Login/Logout */}
+        <div className="mt-6 space-y-4">
+          {!isAuthenticated ? (
+            <button
+              onClick={handleLogin}
+              disabled={isLoading}
+              className={`w-full py-3 rounded-lg font-medium transition-colors ${
+                isDarkMode
+                  ? 'bg-white/10 hover:bg-white/20 text-white'
+                  : 'bg-gray-900 hover:bg-black text-white'
+              }`}
+            >
+              {isLoading ? 'Loading…' : 'Log In with Auth0'}
+            </button>
+          ) : (
+            <div className="space-y-4">
+              <div className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                You are signed in{user?.name ? ` as ${user.name}` : ''}.
+              </div>
+              <button
+                onClick={handleLogout}
+                className={`w-full py-3 rounded-lg font-medium transition-colors ${
+                  isDarkMode
+                    ? 'bg-white/10 hover:bg-white/20 text-white'
+                    : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+                }`}
+              >
+                Log Out
+              </button>
+              {user && (
+                <div className={`mt-2 p-4 rounded-lg border ${
+                  isDarkMode ? 'bg-white/5 border-white/10' : 'bg-gray-50 border-gray-200'
+                }`}>
+                  <div className="flex items-center gap-3">
+                    {user.picture && (
+                      <img src={user.picture} alt={user.name} className="w-10 h-10 rounded-full" />
+                    )}
+                    <div>
+                      <div className={`font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{user.name}</div>
+                      <div className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>{user.email}</div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
-          </div>
-          
-          <div className="mt-6 space-y-4 flex flex-col items-center">
-            <GoogleLogin
-              onSuccess={handleGoogleSuccess}
-              onError={handleGoogleError}
-              width="100%"
-              theme={isDarkMode ? "filled_black" : "outline"}
-              text="signin_with"
-              shape="rectangular"
-            />
-          </div>
+          )}
         </div>
       </motion.div>
     </div>

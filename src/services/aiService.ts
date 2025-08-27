@@ -380,13 +380,16 @@ export class AIService {
   private model: string;
 
   constructor(apiKey: string, provider: 'gemini' | 'openai' = 'gemini') {
-    // Prefer explicit key; otherwise attempt to rehydrate from localStorage
+    // Prefer explicit key; otherwise attempt to rehydrate from localStorage, then env
     let resolvedKey = apiKey;
     if (!resolvedKey && typeof window !== 'undefined') {
       try {
         const stored = localStorage.getItem('apiKey');
         if (stored) resolvedKey = stored;
       } catch (e) {}
+    }
+    if (!resolvedKey && typeof process !== 'undefined') {
+      resolvedKey = (process.env.REACT_APP_GEMINI_API_KEY || process.env.REACT_APP_OPENAI_API_KEY || '') as string;
     }
     this.apiKey = resolvedKey;
     this.model = provider === 'gemini' ? 'gemini-1.5-flash' : 'gpt-4';

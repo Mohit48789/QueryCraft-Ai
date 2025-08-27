@@ -20,7 +20,13 @@ export const QueryInput: React.FC<QueryInputProps> = ({
   const [query, setQuery] = useState('');
   const [databaseType, setDatabaseType] = useState('mysql');
   const [showSettings, setShowSettings] = useState(false);
-  const [apiKey, setApiKey] = useState('');
+  const [apiKey, setApiKey] = useState(() => {
+    try {
+      return localStorage.getItem('apiKey') || process.env.REACT_APP_GEMINI_API_KEY || '';
+    } catch (e) {
+      return '';
+    }
+  });
 
   // Add custom styles for better dropdown visibility
   useEffect(() => {
