@@ -26,11 +26,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const { user, isLoading, loginWithRedirect, logout } = useAuth0();
 
   const signInWithGoogle = async () => {
-    await loginWithRedirect({ connection: 'google-oauth2' });
+    await loginWithRedirect({ authorizationParams: { connection: 'google-oauth2' } });
   };
 
   const signInWithGithub = async () => {
-    await loginWithRedirect({ connection: 'github' });
+    await loginWithRedirect({ authorizationParams: { connection: 'github' } });
   };
 
   const signOut = async () => {
