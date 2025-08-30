@@ -24,14 +24,14 @@ export const HomePage: React.FC<HomePageProps> = ({ isDarkMode, toggleDarkMode, 
       const envKey = process.env.REACT_APP_GEMINI_API_KEY;
       return !!(stored || envKey);
     } catch (e) {
-      return false;
+      return !!process.env.REACT_APP_GEMINI_API_KEY;
     }
   });
   const [apiKey, setApiKey] = useState<string>(() => {
     try {
       return localStorage.getItem('apiKey') || process.env.REACT_APP_GEMINI_API_KEY || '';
     } catch (e) {
-      return '';
+      return process.env.REACT_APP_GEMINI_API_KEY || '';
     }
   });
   const [showAdvancedFeatures, setShowAdvancedFeatures] = useState(false);

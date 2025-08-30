@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: querycraft-ai
+    env: node
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npx serve -s build -l 3000
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: REACT_APP_AUTH0_DOMAIN
+        value: dev-bvu4qxnb3kxijdfg.us.auth0.com
+      - key: REACT_APP_AUTH0_CLIENT_ID
+        value: LHDNebXVt5izd5oC61935KbKD9uXNYI2
+      - key: REACT_APP_GEMINI_API_KEY
+        sync: false

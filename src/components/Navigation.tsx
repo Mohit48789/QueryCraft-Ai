@@ -10,7 +10,30 @@ interface NavigationProps {
 }
 
 export const Navigation: React.FC<NavigationProps> = ({ isDarkMode, toggleDarkMode, onLoginClick }) => {
-  const { isAuthenticated, loginWithRedirect, logout } = useAuth0();
+  const { isAuthenticated, loginWithRedirect, logout, isLoading } = useAuth0();
+
+  const handleLogin = () => {
+    try { 
+      localStorage.setItem('authAction', 'login'); 
+    } catch (e) {}
+    loginWithRedirect({
+      authorizationParams: {
+        redirect_uri: window.location.origin
+      }
+    });
+  };
+
+  const handleLogout = () => {
+    try { 
+      localStorage.setItem('authAction', 'logout'); 
+    } catch (e) {}
+    logout({ 
+      logoutParams: { 
+        returnTo: window.location.origin 
+      } 
+    });
+  };
+
   return (
     <motion.nav
       initial={{ opacity: 0, y: -20 }}
@@ -80,7 +103,8 @@ export const Navigation: React.FC<NavigationProps> = ({ isDarkMode, toggleDarkMo
             {/* Auth Button */}
             {isAuthenticated ? (
               <button
-                onClick={() => { logout({ logoutParams: { returnTo: window.location.origin } }); }}
+                onClick={handleLogout}
+                disabled={isLoading}
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
                   isDarkMode
                     ? 'text-gray-300 hover:text-white hover:bg-gray-800'
@@ -88,18 +112,19 @@ export const Navigation: React.FC<NavigationProps> = ({ isDarkMode, toggleDarkMo
                 }`}
               >
                 <LogOut className="w-4 h-4" />
-                Logout
+                {isLoading ? 'Loading...' : 'Logout'}
               </button>
             ) : (
               <button 
-                onClick={() => { try { localStorage.setItem('authAction', 'login'); } catch (e) {} loginWithRedirect(); }}
+                onClick={handleLogin}
+                disabled={isLoading}
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
                 isDarkMode 
                   ? 'text-gray-300 hover:text-white hover:bg-gray-800' 
                   : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
               }`}>
                 <User className="w-4 h-4" />
-                Login
+                {isLoading ? 'Loading...' : 'Login'}
               </button>
             )}
 

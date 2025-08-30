@@ -17,7 +17,11 @@ export const LoginPage: React.FC<LoginPageProps> = ({ isDarkMode, onBack }) => {
   const handleLogin = async () => {
     try {
       try { localStorage.setItem('authAction', 'login'); } catch (e) {}
-      await loginWithRedirect();
+      await loginWithRedirect({
+        authorizationParams: {
+          redirect_uri: window.location.origin
+        }
+      });
       setMessage('Login successful!');
       setError(null);
       setTimeout(() => onBack(), 500);

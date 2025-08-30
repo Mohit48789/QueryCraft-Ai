@@ -22,7 +22,7 @@ export const QueryInput: React.FC<QueryInputProps> = ({
   const [showSettings, setShowSettings] = useState(false);
   const [apiKey, setApiKey] = useState(() => {
     try {
-      return localStorage.getItem('apiKey') || process.env.REACT_APP_GEMINI_API_KEY || '';
+      return localStorage.getItem('apiKey') || '';
     } catch (e) {
       return '';
     }
@@ -66,6 +66,13 @@ export const QueryInput: React.FC<QueryInputProps> = ({
       if (storedApiKey) {
         setApiKey(storedApiKey);
         onApiKeyChange(storedApiKey);
+      } else {
+        // Check for environment variable on mount
+        const envApiKey = process.env.REACT_APP_GEMINI_API_KEY;
+        if (envApiKey) {
+          setApiKey(envApiKey);
+          onApiKeyChange(envApiKey);
+        }
       }
     } catch (e) {
       // ignore storage errors
