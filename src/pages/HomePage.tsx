@@ -18,22 +18,8 @@ export const HomePage: React.FC<HomePageProps> = ({ isDarkMode, toggleDarkMode, 
   const navigate = useNavigate();
   const [queryResult, setQueryResult] = useState<QueryResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [hasApiKey, setHasApiKey] = useState(() => {
-    try {
-      const stored = localStorage.getItem('apiKey');
-      const envKey = process.env.REACT_APP_GEMINI_API_KEY;
-      return !!(stored || envKey);
-    } catch (e) {
-      return !!process.env.REACT_APP_GEMINI_API_KEY;
-    }
-  });
-  const [apiKey, setApiKey] = useState<string>(() => {
-    try {
-      return localStorage.getItem('apiKey') || process.env.REACT_APP_GEMINI_API_KEY || '';
-    } catch (e) {
-      return process.env.REACT_APP_GEMINI_API_KEY || '';
-    }
-  });
+  const [hasApiKey, setHasApiKey] = useState(false);
+  const [apiKey, setApiKey] = useState<string>('');
   const [showAdvancedFeatures, setShowAdvancedFeatures] = useState(false);
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [naturalLanguageQuery, setNaturalLanguageQuery] = useState<string>('');
@@ -69,10 +55,23 @@ export const HomePage: React.FC<HomePageProps> = ({ isDarkMode, toggleDarkMode, 
   // Rehydrate from localStorage on mount
   useEffect(() => {
     try {
+      // Check for environment API key first
+      const envApiKey = process.env.REACT_APP_GEMINI_API_KEY || process.env.REACT_APP_OPENAI_API_KEY;
+      if (envApiKey) {
+        console.log('Environment API key found, length:', envApiKey.length);
+        setApiKey(envApiKey);
+        setHasApiKey(true);
+      } else {
+        // Fall back to localStorage
+        const storedApiKey = localStorage.getItem('apiKey');
+        if (storedApiKey) {
+          setApiKey(storedApiKey);
+          setHasApiKey(true);
+        }
+      }
+
       const storedResult = localStorage.getItem('queryResult');
       const storedNLQ = localStorage.getItem('naturalLanguageQuery');
-      const storedSchema = localStorage.getItem('schema');
-      const storedApiKey = localStorage.getItem('apiKey');
 
       if (storedResult) {
         setQueryResult(JSON.parse(storedResult));
@@ -80,11 +79,9 @@ export const HomePage: React.FC<HomePageProps> = ({ isDarkMode, toggleDarkMode, 
       if (storedNLQ) {
         setNaturalLanguageQuery(storedNLQ);
       }
-      if (storedApiKey) {
-        setApiKey(storedApiKey);
-        setHasApiKey(!!storedApiKey);
-      }
-      // If schema was previously customized and stored, prefer it; otherwise store current
+      
+      // Store schema if not already stored
+      const storedSchema = localStorage.getItem('schema');
       if (!storedSchema) {
         localStorage.setItem('schema', JSON.stringify(schema));
       }
@@ -223,8 +220,12 @@ export const HomePage: React.FC<HomePageProps> = ({ isDarkMode, toggleDarkMode, 
             isDarkMode={isDarkMode}
             hasApiKey={hasApiKey}
             onApiKeyChange={(key: string) => {
-              setApiKey(key);
-              setHasApiKey(!!key);
+              // Only update state if no environment key exists
+              const envApiKey = process.env.REACT_APP_GEMINI_API_KEY || process.env.REACT_APP_OPENAI_API_KEY;
+              if (!envApiKey) {
+                setApiKey(key);
+                setHasApiKey(!!key);
+              }
             }}
           />
         </div>
